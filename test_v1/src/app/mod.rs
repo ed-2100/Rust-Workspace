@@ -1,5 +1,7 @@
-
-use winit::{application::ApplicationHandler, event::WindowEvent, event_loop::ActiveEventLoop, keyboard::KeyCode, window::WindowId};
+use winit::{
+    application::ApplicationHandler, event::WindowEvent, event_loop::ActiveEventLoop,
+    keyboard::KeyCode, window::WindowId,
+};
 
 mod context;
 use context::Context;
