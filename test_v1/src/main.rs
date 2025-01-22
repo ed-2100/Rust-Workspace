@@ -19,7 +19,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::io::stdout().flush().unwrap();
 
     event_loop.run_app(&mut app)?;
-    
 
     println!(" Done.");
     std::io::stdout().flush().unwrap();
@@ -35,8 +34,7 @@ struct Application {
 impl ApplicationHandler for Application {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.context.is_none() {
-            let window = Arc::new(event_loop.create_window(Default::default()).unwrap());
-            self.context = Some(Context::new(window))
+            self.context = Some(Context::new(event_loop))
         }
     }
 
@@ -60,7 +58,7 @@ impl ApplicationHandler for Application {
                 let mut encoder = context
                     .device
                     .create_command_encoder(&CommandEncoderDescriptor { label: None });
-                
+
                 {
                     let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
                         label: None,
@@ -112,7 +110,9 @@ struct Context {
 }
 
 impl Context {
-    fn new(window: Arc<Window>) -> Self {
+    fn new(event_loop: &ActiveEventLoop) -> Self {
+        let window = Arc::new(event_loop.create_window(Default::default()).unwrap());
+
         let mut size = window.inner_size();
         size.width = size.width.max(1);
         size.height = size.height.max(1);
