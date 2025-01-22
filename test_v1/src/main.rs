@@ -3,6 +3,7 @@ use std::{borrow::Cow, error::Error, io::Write as _, sync::Arc};
 use wgpu::*;
 use winit::{
     application::ApplicationHandler,
+    dpi::PhysicalSize,
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::KeyCode,
@@ -46,50 +47,14 @@ impl ApplicationHandler for Application {
     ) {
         let context = self.context.as_mut().unwrap();
         match event {
-            WindowEvent::Resized(new_size) => {
-                context.config.width = new_size.width.max(1);
-                context.config.height = new_size.height.max(1);
-                context.surface.configure(&context.device, &context.config);
-                context.window.request_redraw();
-            }
-            WindowEvent::RedrawRequested => {
-                let frame = context.surface.get_current_texture().unwrap();
-                let view = frame.texture.create_view(&TextureViewDescriptor::default());
-                let mut encoder = context
-                    .device
-                    .create_command_encoder(&CommandEncoderDescriptor { label: None });
-
-                {
-                    let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
-                        label: None,
-                        color_attachments: &[Some(RenderPassColorAttachment {
-                            view: &view,
-                            resolve_target: None,
-                            ops: Operations {
-                                load: LoadOp::Clear(Color::BLUE),
-                                store: StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
-
-                    rpass.set_pipeline(&context.render_pipeline);
-                    rpass.draw(0..3, 0..1);
-                }
-
-                context.queue.submit(Some(encoder.finish()));
-                frame.present();
-            }
+            WindowEvent::Resized(new_size) => context.resize(new_size),
+            WindowEvent::RedrawRequested => context.redraw(),
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.physical_key == KeyCode::Escape && !event.repeat {
                     event_loop.exit();
                 }
             }
-            WindowEvent::CloseRequested => {
-                event_loop.exit();
-            }
+            WindowEvent::CloseRequested => event_loop.exit(),
             _ => {}
         };
     }
@@ -119,7 +84,7 @@ impl Context {
 
         let instance = Instance::new(&InstanceDescriptor {
             backends: Backends::VULKAN,
-            flags: InstanceFlags::empty(),
+            flags: InstanceFlags::from_env_or_default(),
             backend_options: BackendOptions::from_env_or_default(),
         });
 
@@ -196,5 +161,43 @@ impl Context {
             render_pipeline,
             config,
         }
+    }
+
+    fn redraw(&mut self) {
+        let frame = self.surface.get_current_texture().unwrap();
+        let view = frame.texture.create_view(&TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor { label: None });
+
+        {
+            let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(Color::BLUE),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+
+            rpass.set_pipeline(&self.render_pipeline);
+            rpass.draw(0..3, 0..1);
+        }
+
+        self.queue.submit(Some(encoder.finish()));
+        frame.present();
+    }
+
+    fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        self.config.width = new_size.width.max(1);
+        self.config.height = new_size.height.max(1);
+        self.surface.configure(&self.device, &self.config);
+        self.window.request_redraw();
     }
 }
