@@ -9,4 +9,4 @@ env_logger = "0.11"
 log = "0.4"
 wgpu = { version = "24.0" }
 pollster = "0.4"
-ouroboros = "0.18"
+bytemuck = "1.21"
