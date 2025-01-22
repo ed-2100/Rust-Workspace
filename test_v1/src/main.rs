@@ -10,14 +10,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let event_loop = EventLoop::new()?;
     let mut app = Application::default();
+    let mut stdout = std::io::stdout();
 
     print!("Running...");
-    std::io::stdout().flush().unwrap();
+    stdout.flush()?;
 
     event_loop.run_app(&mut app)?;
 
     println!(" Done.");
-    std::io::stdout().flush().unwrap();
+    stdout.flush()?;
 
     Ok(())
 }
