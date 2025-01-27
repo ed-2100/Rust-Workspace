@@ -71,12 +71,13 @@ pub(crate) struct Context {
     queue: Queue,
     device: Device,
     render_pipeline: RenderPipeline,
-
+    
+    // SAFETY:
     // This MUST be dropped BEFORE window.
     // Wayland will segfault otherwise.
-    // surface drops its strong reference
+    // `surface` drops its strong reference
     // before it *fully* drops itself.
-    // https://github.com/gfx-rs/wgpu/pull/6997
+    // See [here](https://github.com/gfx-rs/wgpu/pull/6997).
     surface: Surface<'static>,
     window: Arc<Window>,
     config: SurfaceConfiguration,
