@@ -4,9 +4,9 @@ layout(location = 0) out vec2 fragPosition;
 
 vec2 points[4] = {
     vec2(-1.0, -1.0),
-    vec2(1.0, -1.0),
-    vec2(1.0, 1.0),
-    vec2(-1.0, 1.0)
+    vec2( 1.0, -1.0),
+    vec2( 1.0,  1.0),
+    vec2(-1.0,  1.0),
 };
 
 void main() {
