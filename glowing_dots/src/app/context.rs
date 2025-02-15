@@ -1,36 +1,12 @@
 use pollster::block_on;
 use std::{borrow::Cow, io::Write as _, sync::Arc, time::SystemTime};
-use util::{BufferInitDescriptor, DeviceExt as _};
+use util::DeviceExt as _;
 use wgpu::*;
 use winit::{
     dpi::{LogicalSize, PhysicalSize},
     event_loop::ActiveEventLoop,
     window::{Window, WindowAttributes},
 };
-
-#[repr(C)]
-struct Vertex([f32; 2]);
-
-impl Vertex {
-    fn desc() -> VertexBufferLayout<'static> {
-        VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as BufferAddress,
-            step_mode: VertexStepMode::Vertex,
-            attributes: &[VertexAttribute {
-                offset: 0,
-                shader_location: 0,
-                format: VertexFormat::Float32x2,
-            }],
-        }
-    }
-}
-
-const VERTICES: &[Vertex] = &[
-    Vertex([-1.0, -1.0]), // Top left
-    Vertex([1.0, -1.0]),  // Top right
-    Vertex([1.0, 1.0]),   // Bottom right
-    Vertex([-1.0, 1.0]),  // Bottom left
-];
 
 const INDICES: &[[u16; 3]; 2] = &[
     [0, 1, 2], // Top right face
@@ -48,16 +24,6 @@ const STARTING_POSITION: &[PointPosition; 4] = &[
     PointPosition([-0.5, 0.5]),  // Blue
 ];
 
-#[repr(C, align(16))]
-struct PointColor([f32; 3]);
-
-const STARTING_COLOR: &[PointColor; 4] = &[
-    PointColor([1.0, 1.0, 1.0]), // White
-    PointColor([1.0, 0.0, 0.0]), // Red
-    PointColor([0.0, 1.0, 0.0]), // Green
-    PointColor([0.0, 0.0, 1.0]), // Blue
-];
-
 // The ordering of this struct is important to the program's shutdown process.
 pub(crate) struct Context {
     time_last_print: SystemTime,
@@ -66,12 +32,11 @@ pub(crate) struct Context {
     points_position: [PointPosition; 4],
     points_position_buffer: Buffer,
     points_bind_group: BindGroup,
-    vertex_buffer: Buffer,
     index_buffer: Buffer,
     queue: Queue,
     device: Device,
     render_pipeline: RenderPipeline,
-    
+
     // SAFETY:
     // This MUST be dropped BEFORE window.
     // Wayland will segfault otherwise.
@@ -153,56 +118,27 @@ impl Context {
             mapped_at_creation: false,
         });
 
-        let points_color_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: None,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            contents: unsafe {
-                std::slice::from_raw_parts(
-                    STARTING_COLOR.as_ptr() as *const u8,
-                    std::mem::size_of_val(STARTING_COLOR),
-                )
-            },
-        });
-
         let points_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: None,
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                ],
+                    count: None,
+                }],
             });
 
         let points_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &points_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: points_position_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: points_color_buffer.as_entire_binding(),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: points_position_buffer.as_entire_binding(),
+            }],
             label: None,
         });
 
@@ -221,7 +157,7 @@ impl Context {
             vertex: VertexState {
                 module: &vertex_shader,
                 entry_point: None,
-                buffers: &[Vertex::desc()],
+                buffers: &[],
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
@@ -242,17 +178,6 @@ impl Context {
             .unwrap();
         config.present_mode = PresentMode::Mailbox;
         surface.configure(&device, &config);
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: unsafe {
-                std::slice::from_raw_parts(
-                    VERTICES.as_ptr() as *const u8,
-                    std::mem::size_of_val(VERTICES),
-                )
-            },
-            usage: BufferUsages::VERTEX,
-        });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
@@ -276,7 +201,6 @@ impl Context {
             device,
             queue,
             render_pipeline,
-            vertex_buffer,
             index_buffer,
             points_position,
             points_position_buffer,
@@ -342,7 +266,6 @@ impl Context {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.points_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint16);
             render_pass.draw_indexed(0..(INDICES.len() * 3) as u32, 0, 0..1);
         }
