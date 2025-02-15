@@ -7,7 +7,7 @@ edition = "2024"
 winit = "0.30"
 env_logger = "0.11"
 log = "0.4"
-wgpu = { path = "../../wgpu/wgpu", features = ["glsl"] }
+wgpu = { version = "24.0", features = ["glsl"] }
 pollster = "0.4"
 bytemuck = "1.21"
 glam = "0.29"

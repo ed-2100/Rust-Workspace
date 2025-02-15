@@ -649,7 +649,7 @@ dependencies = [
  "image",
  "log",
  "pollster",
- "wgpu 24.0.0",
+ "wgpu",
  "winit",
 ]
 
@@ -936,27 +936,6 @@ checksum = "b8402cab7aefae129c6977bb0ff1b8fd9a04eb5b51efc50a70bea51cda0c7924"
 dependencies = [
  "adler2",
  "simd-adler32",
-]
-
-[[package]]
-name = "naga"
-version = "24.0.0"
-dependencies = [
- "arrayvec",
- "bit-set",
- "bitflags 2.8.0",
- "cfg_aliases",
- "codespan-reporting",
- "hexf-parse",
- "indexmap",
- "log",
- "pp-rs",
- "rustc-hash",
- "spirv",
- "strum",
- "termcolor",
- "thiserror 2.0.11",
- "unicode-xid",
 ]
 
 [[package]]
@@ -1741,7 +1720,7 @@ dependencies = [
  "image",
  "log",
  "pollster",
- "wgpu 24.0.1",
+ "wgpu",
  "winit",
 ]
 
@@ -2103,30 +2082,6 @@ dependencies = [
 
 [[package]]
 name = "wgpu"
-version = "24.0.0"
-dependencies = [
- "arrayvec",
- "bitflags 2.8.0",
- "cfg_aliases",
- "document-features",
- "js-sys",
- "log",
- "naga 24.0.0",
- "parking_lot",
- "profiling",
- "raw-window-handle",
- "smallvec",
- "static_assertions",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "wgpu-core 24.0.0",
- "wgpu-hal 24.0.0",
- "wgpu-types 24.0.0",
-]
-
-[[package]]
-name = "wgpu"
 version = "24.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47f55718f85c2fa756edffa0e7f0e0a60aba463d1362b57e23123c58f035e4b6"
@@ -2137,7 +2092,7 @@ dependencies = [
  "document-features",
  "js-sys",
  "log",
- "naga 24.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "naga",
  "parking_lot",
  "profiling",
  "raw-window-handle",
@@ -2146,33 +2101,9 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu-core 24.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wgpu-hal 24.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wgpu-types 24.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "wgpu-core"
-version = "24.0.0"
-dependencies = [
- "arrayvec",
- "bit-vec",
- "bitflags 2.8.0",
- "cfg_aliases",
- "document-features",
- "hashbrown",
- "indexmap",
- "log",
- "naga 24.0.0",
- "once_cell",
- "parking_lot",
- "profiling",
- "raw-window-handle",
- "rustc-hash",
- "smallvec",
- "thiserror 2.0.11",
- "wgpu-hal 24.0.0",
- "wgpu-types 24.0.0",
+ "wgpu-core",
+ "wgpu-hal",
+ "wgpu-types",
 ]
 
 [[package]]
@@ -2188,7 +2119,7 @@ dependencies = [
  "document-features",
  "indexmap",
  "log",
- "naga 24.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "naga",
  "once_cell",
  "parking_lot",
  "profiling",
@@ -2196,53 +2127,8 @@ dependencies = [
  "rustc-hash",
  "smallvec",
  "thiserror 2.0.11",
- "wgpu-hal 24.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wgpu-types 24.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "wgpu-hal"
-version = "24.0.0"
-dependencies = [
- "android_system_properties",
- "arrayvec",
- "ash",
- "bit-set",
- "bitflags 2.8.0",
- "block",
- "bytemuck",
- "cfg_aliases",
- "core-graphics-types",
- "glow",
- "glutin_wgl_sys",
- "gpu-alloc",
- "gpu-allocator",
- "gpu-descriptor",
- "hashbrown",
- "js-sys",
- "khronos-egl",
- "libc",
- "libloading",
- "log",
- "metal",
- "naga 24.0.0",
- "ndk-sys 0.5.0+25.2.9519653",
- "objc",
- "once_cell",
- "ordered-float",
- "parking_lot",
- "profiling",
- "range-alloc",
- "raw-window-handle",
- "renderdoc-sys",
- "rustc-hash",
- "smallvec",
- "thiserror 2.0.11",
- "wasm-bindgen",
- "web-sys",
- "wgpu-types 24.0.0",
- "windows",
- "windows-core",
+ "wgpu-hal",
+ "wgpu-types",
 ]
 
 [[package]]
@@ -2271,7 +2157,7 @@ dependencies = [
  "libloading",
  "log",
  "metal",
- "naga 24.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "naga",
  "ndk-sys 0.5.0+25.2.9519653",
  "objc",
  "once_cell",
@@ -2286,20 +2172,9 @@ dependencies = [
  "thiserror 2.0.11",
  "wasm-bindgen",
  "web-sys",
- "wgpu-types 24.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wgpu-types",
  "windows",
  "windows-core",
-]
-
-[[package]]
-name = "wgpu-types"
-version = "24.0.0"
-dependencies = [
- "bitflags 2.8.0",
- "js-sys",
- "log",
- "serde",
- "web-sys",
 ]
 
 [[package]]
