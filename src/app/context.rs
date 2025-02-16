@@ -93,7 +93,7 @@ impl Context {
             .unwrap();
         config.format = TextureFormat::Rgba8Unorm;
         config.usage |= TextureUsages::COPY_DST;
-        config.present_mode = PresentMode::AutoVsync;
+        config.present_mode = PresentMode::AutoNoVsync;
         surface.configure(&device, &config);
 
         let compute_shader = device.create_shader_module(ShaderModuleDescriptor {
