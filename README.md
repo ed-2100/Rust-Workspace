@@ -9,6 +9,7 @@ This builds off of the CPU-based glowing_dots demo program [here](https://github
 ## Features
 
 - Real-time GPU-accelerated rendering using compute shaders (>10,000 fps on iGPU)
+- Bayer dithering
 - Smooth animations with proper gamma correction
 - Window resizing support with maintained aspect ratio
 - FPS counter display
