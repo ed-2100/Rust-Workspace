@@ -1,4 +1,4 @@
-use log::{debug, info};
+use log::info;
 use winit::{
     application::ApplicationHandler, event::WindowEvent, event_loop::ActiveEventLoop,
     keyboard::KeyCode, window::WindowId,
