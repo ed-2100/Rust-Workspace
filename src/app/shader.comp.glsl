@@ -7,7 +7,7 @@ layout(set = 0, binding = 0) uniform Position {
 };
 layout(set = 0, binding = 1, rgba8) uniform writeonly image2D output_texture;
 
-lowp vec3 points_color[4] = {
+vec3 points_color[4] = {
     vec3(1.0, 1.0, 1.0),
     vec3(1.0, 0.0, 0.0),
     vec3(0.0, 1.0, 0.0),
