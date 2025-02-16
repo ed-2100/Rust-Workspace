@@ -1,17 +1,11 @@
 use pollster::block_on;
 use std::{borrow::Cow, io::Write as _, sync::Arc, time::SystemTime};
-use util::DeviceExt as _;
 use wgpu::*;
 use winit::{
     dpi::{LogicalSize, PhysicalSize},
     event_loop::ActiveEventLoop,
     window::{Window, WindowAttributes},
 };
-
-const INDICES: &[[u16; 3]; 2] = &[
-    [0, 1, 2], // Top right face
-    [2, 3, 0], // Bottom left face
-];
 
 #[repr(C, align(16))] // The internet says 8, but the compiler says 16.
 #[derive(Clone, Copy)]
@@ -31,11 +25,11 @@ pub(crate) struct Context {
     time_start: SystemTime,
     points_position: [PointPosition; 4],
     points_position_buffer: Buffer,
-    points_bind_group: BindGroup,
-    index_buffer: Buffer,
+    texture: Texture,
+    bind_group: BindGroup,
     queue: Queue,
     device: Device,
-    render_pipeline: RenderPipeline,
+    compute_pipeline: ComputePipeline,
 
     // SAFETY:
     // This MUST be dropped BEFORE window.
@@ -93,20 +87,19 @@ impl Context {
         ))
         .unwrap();
 
-        let vertex_shader = device.create_shader_module(ShaderModuleDescriptor {
-            label: None,
-            source: ShaderSource::Glsl {
-                shader: Cow::Borrowed(include_str!("shader.vert")),
-                stage: naga::ShaderStage::Vertex,
-                defines: Default::default(),
-            },
-        });
+        let mut config = surface
+            .get_default_config(&adapter, size.width, size.height)
+            .unwrap();
+        config.format = TextureFormat::Rgba8Unorm;
+        config.usage |= TextureUsages::COPY_DST;
+        config.present_mode = PresentMode::Mailbox;
+        surface.configure(&device, &config);
 
-        let fragment_shader = device.create_shader_module(ShaderModuleDescriptor {
+        let compute_shader = device.create_shader_module(ShaderModuleDescriptor {
             label: None,
             source: ShaderSource::Glsl {
-                shader: Cow::Borrowed(include_str!("shader.frag")),
-                stage: naga::ShaderStage::Fragment,
+                shader: Cow::Borrowed(include_str!("shader.comp")),
+                stage: naga::ShaderStage::Compute,
                 defines: Default::default(),
             },
         });
@@ -118,76 +111,76 @@ impl Context {
             mapped_at_creation: false,
         });
 
-        let points_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: None,
-                entries: &[wgpu::BindGroupLayoutEntry {
+        let texture = device.create_texture(&TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width: config.width,
+                height: config.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let texture_view = texture.create_view(&TextureViewDescriptor::default());
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[
+                BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
                     count: None,
-                }],
-            });
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::WriteOnly,
+                        format: TextureFormat::Rgba8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+            ],
+        });
 
-        let points_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &points_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: points_position_buffer.as_entire_binding(),
-            }],
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: points_position_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&texture_view),
+                },
+            ],
         });
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[&points_bind_group_layout],
+            bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
 
-        let surface_capabilities = surface.get_capabilities(&adapter);
-        let surface_format = surface_capabilities.formats[0];
-
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        let compute_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
-            vertex: VertexState {
-                module: &vertex_shader,
-                entry_point: None,
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(FragmentState {
-                module: &fragment_shader,
-                entry_point: None,
-                compilation_options: Default::default(),
-                targets: &[Some(surface_format.into())],
-            }),
-            primitive: PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: MultisampleState::default(),
-            multiview: None,
+            module: &compute_shader,
+            entry_point: None,
+            compilation_options: Default::default(),
             cache: None,
-        });
-
-        let mut config = surface
-            .get_default_config(&adapter, size.width, size.height)
-            .unwrap();
-        config.present_mode = PresentMode::Mailbox;
-        surface.configure(&device, &config);
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: unsafe {
-                std::slice::from_raw_parts(
-                    INDICES.as_ptr() as *const u8,
-                    std::mem::size_of_val(INDICES),
-                )
-            },
-            usage: BufferUsages::INDEX,
         });
 
         let points_position = *STARTING_POSITION;
@@ -200,14 +193,14 @@ impl Context {
             config,
             device,
             queue,
-            render_pipeline,
-            index_buffer,
             points_position,
             points_position_buffer,
-            points_bind_group,
             time_start: time_initial,
             time_last_draw: time_initial,
             time_last_print: time_initial,
+            texture,
+            compute_pipeline,
+            bind_group,
         }
     }
 
@@ -223,10 +216,10 @@ impl Context {
         let scale_factor = (sin_r + 1.0) / 2.0;
         sin_r *= scale_factor;
         cos_r *= scale_factor;
-        for i in 0..STARTING_POSITION.len() {
+        for (i, pos) in STARTING_POSITION.iter().enumerate() {
             self.points_position[i].0 = [
-                (STARTING_POSITION[i].0[0] * cos_r - STARTING_POSITION[i].0[1] * sin_r),
-                (STARTING_POSITION[i].0[0] * sin_r + STARTING_POSITION[i].0[1] * cos_r),
+                (pos.0[0] * cos_r - pos.0[1] * sin_r),
+                (pos.0[0] * sin_r + pos.0[1] * cos_r),
             ];
         }
         self.queue
@@ -238,37 +231,37 @@ impl Context {
             });
 
         let frame = self.surface.get_current_texture().unwrap();
-        let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut encoder = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
 
         {
-            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
                 label: None,
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
                 timestamp_writes: None,
-                occlusion_query_set: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.points_bind_group, &[]);
-            render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint16);
-            render_pass.draw_indexed(0..(INDICES.len() * 3) as u32, 0, 0..1);
+            compute_pass.set_pipeline(&self.compute_pipeline);
+            compute_pass.set_bind_group(0, &self.bind_group, &[]);
+
+            let workgroup_size_x = 8;
+            let workgroup_size_y = 8;
+
+            let dispatch_x = self.config.width.div_ceil(workgroup_size_x);
+            let dispatch_y = self.config.height.div_ceil(workgroup_size_y);
+
+            compute_pass.dispatch_workgroups(dispatch_x, dispatch_y, 1);
         }
+
+        encoder.copy_texture_to_texture(
+            self.texture.as_image_copy(),
+            frame.texture.as_image_copy(),
+            wgpu::Extent3d {
+                width: self.config.width,
+                height: self.config.height,
+                depth_or_array_layers: 1,
+            },
+        );
 
         self.queue.submit(Some(encoder.finish()));
         frame.present();

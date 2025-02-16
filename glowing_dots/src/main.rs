@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // env_logger::init();
     let event_loop = EventLoop::new().unwrap();
 
-    print!("Running...\n");
+    println!("Running...");
     std::io::stdout().flush().unwrap();
 
     // Drop early for debugging purposes.
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         event_loop.run_app(&mut app).unwrap();
     }
 
-    print!("\nDone.\n");
+    println!("\nDone.");
     std::io::stdout().flush().unwrap();
 
     Ok(())
