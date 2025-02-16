@@ -326,4 +326,12 @@ impl Context {
             ],
         });
     }
+
+    pub fn toggle_fullscreen(&self) {
+        if self.window.fullscreen().is_some() {
+            self.window.set_fullscreen(None);
+        } else {
+            self.window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+        }
+    }
 }
