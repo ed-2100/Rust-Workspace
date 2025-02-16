@@ -1,10 +1,10 @@
 use pollster::block_on;
-use std::{borrow::Cow, io::Write as _, sync::Arc, time::SystemTime};
+use std::{borrow::Cow, collections::HashMap, io::Write as _, sync::Arc, time::SystemTime};
 use wgpu::*;
 use winit::{
     dpi::{LogicalSize, PhysicalSize},
     event_loop::ActiveEventLoop,
-    window::{Window, WindowAttributes},
+    window::{Fullscreen, Window, WindowAttributes},
 };
 
 #[repr(C, align(16))] // The internet says 8, but the compiler says 16.
@@ -102,20 +102,20 @@ impl Context {
             source: ShaderSource::Glsl {
                 shader: Cow::Borrowed(include_str!("shader.comp.glsl")),
                 stage: naga::ShaderStage::Compute,
-                defines: Default::default(),
+                defines: HashMap::default(),
             },
         });
 
         let points_position_buffer = device.create_buffer(&BufferDescriptor {
             label: None,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             size: std::mem::size_of_val(STARTING_POSITION) as u64,
             mapped_at_creation: false,
         });
 
         let texture = device.create_texture(&TextureDescriptor {
             label: None,
-            size: wgpu::Extent3d {
+            size: Extent3d {
                 width: config.width,
                 height: config.height,
                 depth_or_array_layers: 1,
@@ -129,14 +129,14 @@ impl Context {
         });
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: None,
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -155,11 +155,11 @@ impl Context {
             ],
         });
 
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: None,
             layout: &bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry {
+                BindGroupEntry {
                     binding: 0,
                     resource: points_position_buffer.as_entire_binding(),
                 },
@@ -181,7 +181,7 @@ impl Context {
             layout: Some(&pipeline_layout),
             module: &compute_shader,
             entry_point: None,
-            compilation_options: Default::default(),
+            compilation_options: PipelineCompilationOptions::default(),
             cache: None,
         });
 
@@ -259,7 +259,7 @@ impl Context {
         encoder.copy_texture_to_texture(
             self.texture.as_image_copy(),
             frame.texture.as_image_copy(),
-            wgpu::Extent3d {
+            Extent3d {
                 width: self.config.width,
                 height: self.config.height,
                 depth_or_array_layers: 1,
@@ -296,7 +296,7 @@ impl Context {
 
         self.texture = self.device.create_texture(&TextureDescriptor {
             label: None,
-            size: wgpu::Extent3d {
+            size: Extent3d {
                 width: self.config.width,
                 height: self.config.height,
                 depth_or_array_layers: 1,
@@ -311,11 +311,11 @@ impl Context {
 
         let texture_view = self.texture.create_view(&TextureViewDescriptor::default());
 
-        self.bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        self.bind_group = self.device.create_bind_group(&BindGroupDescriptor {
             label: None,
             layout: &self.bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry {
+                BindGroupEntry {
                     binding: 0,
                     resource: self.points_position_buffer.as_entire_binding(),
                 },
@@ -331,7 +331,8 @@ impl Context {
         if self.window.fullscreen().is_some() {
             self.window.set_fullscreen(None);
         } else {
-            self.window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+            self.window
+                .set_fullscreen(Some(Fullscreen::Borderless(None)));
         }
     }
 }
