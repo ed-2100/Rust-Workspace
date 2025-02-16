@@ -25,4 +25,7 @@ This builds off of the CPU-based glowing_dots demo program [here](https://github
 
 ```sh
 cargo run --release
+
+# To disable the framerate limit, use:
+cargo run --release -- --turbo
 ```

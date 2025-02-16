@@ -94,7 +94,11 @@ impl Context {
             .unwrap();
         config.format = TextureFormat::Rgba8Unorm;
         config.usage |= TextureUsages::COPY_DST;
-        config.present_mode = PresentMode::AutoNoVsync;
+        config.present_mode = if std::env::args().any(|arg| arg == "--turbo") {
+            PresentMode::AutoNoVsync
+        } else {
+            PresentMode::AutoVsync
+        };
         surface.configure(&device, &config);
 
         let compute_shader = device.create_shader_module(ShaderModuleDescriptor {
