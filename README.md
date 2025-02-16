@@ -16,7 +16,7 @@ This builds off of the CPU-based glowing_dots demo program [here](https://github
 ## Requirements
 
 - Rust (nightly toolchain)
-- A GPU with Vulkan/Metal/DX12/OpenGL support
+- A GPU with Vulkan/Metal/DX12 support
 - Linux/MacOS/Windows
 
 ## Running
