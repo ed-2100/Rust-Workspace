@@ -1,25 +1,23 @@
-use std::{error::Error, io::Write as _};
-
+use log::info;
 use winit::event_loop::EventLoop;
 
 mod app;
 use app::Application;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    // env_logger::init();
-    let event_loop = EventLoop::new().unwrap();
+fn main() {
+    env_logger::init();
 
-    println!("Running...");
-    std::io::stdout().flush().unwrap();
+    let event_loop = EventLoop::new().unwrap();
 
     // Drop early for debugging purposes.
     {
         let mut app = Application::default();
+
+        info!("Running...");
         event_loop.run_app(&mut app).unwrap();
+
+        info!("Exiting...");
     }
 
-    println!("\nDone.");
-    std::io::stdout().flush().unwrap();
-
-    Ok(())
+    info!("Done.");
 }

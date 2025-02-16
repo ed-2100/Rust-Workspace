@@ -19,7 +19,7 @@ const STARTING_POSITION: &[PointPosition; 4] = &[
 ];
 
 // The ordering of this struct is important to the program's shutdown process.
-pub(crate) struct Context {
+pub struct Context {
     time_last_print: SystemTime,
     time_last_draw: SystemTime,
     time_start: SystemTime,
@@ -44,7 +44,7 @@ pub(crate) struct Context {
 }
 
 impl Context {
-    pub(crate) fn new(event_loop: &ActiveEventLoop) -> Self {
+    pub fn new(event_loop: &ActiveEventLoop) -> Self {
         let window = Arc::new(
             event_loop
                 .create_window(
@@ -189,7 +189,7 @@ impl Context {
 
         let time_initial = SystemTime::now();
 
-        Context {
+        Self {
             window,
             surface,
             config,
@@ -207,7 +207,7 @@ impl Context {
         }
     }
 
-    pub(crate) fn redraw(&mut self) {
+    pub fn redraw(&mut self) {
         let r = -SystemTime::now()
             .duration_since(self.time_start)
             .unwrap()
@@ -228,7 +228,7 @@ impl Context {
         self.queue
             .write_buffer(&self.points_position_buffer, 0, unsafe {
                 std::slice::from_raw_parts(
-                    self.points_position.as_ptr() as *const u8,
+                    self.points_position.as_ptr().cast::<u8>(),
                     std::mem::size_of_val(&self.points_position),
                 )
             });
@@ -288,7 +288,7 @@ impl Context {
         self.window.request_redraw();
     }
 
-    pub(crate) fn resize(&mut self, new_size: PhysicalSize<u32>) {
+    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.config.width = new_size.width.max(1);
         self.config.height = new_size.height.max(1);
         self.surface.configure(&self.device, &self.config);

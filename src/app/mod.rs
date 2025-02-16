@@ -1,3 +1,4 @@
+use log::{debug, info};
 use winit::{
     application::ApplicationHandler, event::WindowEvent, event_loop::ActiveEventLoop,
     keyboard::KeyCode, window::WindowId,
@@ -7,14 +8,15 @@ mod context;
 use context::Context;
 
 #[derive(Default)]
-pub(crate) struct Application {
+pub struct Application {
     context: Option<Context>,
 }
 
 impl ApplicationHandler for Application {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.context.is_none() {
-            self.context = Some(Context::new(event_loop))
+            info!("Creating context...");
+            self.context = Some(Context::new(event_loop));
         }
     }
 
