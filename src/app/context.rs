@@ -53,7 +53,8 @@ impl Context {
                             width: 500,
                             height: 500,
                         })
-                        .with_resizable(true),
+                        .with_resizable(true)
+                        .with_title("glowing_dots"),
                 )
                 .unwrap(),
         );
