@@ -24,5 +24,5 @@ This builds off of the CPU-based glowing_dots demo program [here](https://github
 ## Running
 
 ```sh
-cargo run --bin glowing_dots --release
+cargo run --release
 ```
