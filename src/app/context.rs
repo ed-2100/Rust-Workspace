@@ -99,7 +99,7 @@ impl Context {
         let compute_shader = device.create_shader_module(ShaderModuleDescriptor {
             label: None,
             source: ShaderSource::Glsl {
-                shader: Cow::Borrowed(include_str!("shader.comp")),
+                shader: Cow::Borrowed(include_str!("shader.comp.glsl")),
                 stage: naga::ShaderStage::Compute,
                 defines: Default::default(),
             },
