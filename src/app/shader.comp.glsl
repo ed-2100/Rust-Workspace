@@ -14,6 +14,23 @@ lowp vec3 points_color[4] = {
     vec3(0.0, 0.0, 1.0)
 };
 
+const float bayer8x8[64] = float[](
+     0, 48, 12, 60,  3, 51, 15, 63,
+    32, 16, 44, 28, 35, 19, 47, 31,
+     8, 56,  4, 52, 11, 59,  7, 55,
+    40, 24, 36, 20, 43, 27, 39, 23,
+     2, 50, 14, 62,  1, 49, 13, 61,
+    34, 18, 46, 30, 33, 17, 45, 29,
+    10, 58,  6, 54,  9, 57,  5, 53,
+    42, 26, 38, 22, 41, 25, 37, 21
+);
+
+float getBayerValue(uvec2 coord) {
+    uint x = coord.x % 8;
+    uint y = coord.y % 8;
+    return bayer8x8[y * 8 + x] / 64.0;
+}
+
 void main() {
     uvec2 pixel_coords = gl_GlobalInvocationID.xy;
     ivec2 texture_size = imageSize(output_texture);
@@ -24,16 +41,17 @@ void main() {
 
     int min_width = min(texture_size.x, texture_size.y);
 
-    lowp vec2 position = vec2(ivec2(pixel_coords << 1) - (texture_size - min_width)) / float(min_width) - 1.0;
+    vec2 position = vec2(ivec2(pixel_coords * 2) - (texture_size - min_width)) / min_width - 1;
 
-    lowp vec3 sum_color = vec3(0.0, 0.0, 0.0);
+    vec3 sum_color = vec3(0.0, 0.0, 0.0);
     for (int i = 0; i < 4; i++) {
-        lowp vec2 delta = position - points_position[i];
-        lowp float dist_sqrd = dot(delta, delta);
+        vec2 delta = position - points_position[i];
+        float dist_sqrd = dot(delta, delta);
         sum_color += points_color[i] / (dist_sqrd * 300.0 + 1.0);
     }
-    sum_color = clamp(sum_color, vec3(0.0), vec3(1.0));
-    sum_color = pow(sum_color, vec3(1.0 / 2.2));
+
+    sum_color = pow(sum_color, vec3(1.0 / 2.2)); // Gamma correction
+    sum_color = sum_color + (getBayerValue(pixel_coords) - 0.5) * (1.0 / 255.0); // Bayer dithering
 
     imageStore(output_texture, ivec2(pixel_coords), vec4(sum_color, 1.0));
 }
