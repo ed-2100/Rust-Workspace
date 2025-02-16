@@ -26,6 +26,7 @@ pub(crate) struct Context {
     points_position: [PointPosition; 4],
     points_position_buffer: Buffer,
     texture: Texture,
+    bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
     queue: Queue,
     device: Device,
@@ -52,7 +53,7 @@ impl Context {
                             width: 500,
                             height: 500,
                         })
-                        .with_resizable(false),
+                        .with_resizable(true),
                 )
                 .unwrap(),
         );
@@ -92,7 +93,7 @@ impl Context {
             .unwrap();
         config.format = TextureFormat::Rgba8Unorm;
         config.usage |= TextureUsages::COPY_DST;
-        config.present_mode = PresentMode::Mailbox;
+        config.present_mode = PresentMode::AutoVsync;
         surface.configure(&device, &config);
 
         let compute_shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -201,6 +202,7 @@ impl Context {
             texture,
             compute_pipeline,
             bind_group,
+            bind_group_layout,
         }
     }
 
@@ -290,5 +292,37 @@ impl Context {
         self.config.height = new_size.height.max(1);
         self.surface.configure(&self.device, &self.config);
         self.window.request_redraw();
+
+        self.texture = self.device.create_texture(&TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width: self.config.width,
+                height: self.config.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+
+        let texture_view = self.texture.create_view(&TextureViewDescriptor::default());
+
+        self.bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: None,
+            layout: &self.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: self.points_position_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&texture_view),
+                },
+            ],
+        });
     }
 }
