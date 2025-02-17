@@ -11,6 +11,9 @@ use winit::{
 
 const NUM_FRAMES: usize = 2;
 
+const WORKGROUP_SIZE_X: u32 = 8;
+const WORKGROUP_SIZE_Y: u32 = 8;
+
 #[repr(C, align(16))] // The internet says 8, but the compiler says 16.
 #[derive(Clone, Copy)]
 struct PointPosition([f32; 2]);
@@ -416,11 +419,8 @@ impl Context {
         compute_pass.set_pipeline(&self.compute_pipeline);
         compute_pass.set_bind_group(0, &frame_data.bind_group, &[]);
 
-        let workgroup_size_x = 8;
-        let workgroup_size_y = 8;
-
-        let dispatch_x = self.config.width.div_ceil(workgroup_size_x);
-        let dispatch_y = self.config.height.div_ceil(workgroup_size_y);
+        let dispatch_x = self.config.width.div_ceil(WORKGROUP_SIZE_X);
+        let dispatch_y = self.config.height.div_ceil(WORKGROUP_SIZE_Y);
 
         compute_pass.dispatch_workgroups(dispatch_x, dispatch_y, 1);
     }
