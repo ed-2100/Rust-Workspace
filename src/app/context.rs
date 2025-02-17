@@ -109,7 +109,7 @@ impl Context {
 
         // Write the points' positions to the buffer.
         {
-            let mut temp = self
+            let mut mapped = self
                 .queue
                 .write_buffer_with(
                     &frame_data.points_position_buffer,
@@ -118,16 +118,16 @@ impl Context {
                 )
                 .unwrap();
 
-            let temp_slice = unsafe {
+            let mapped_slice = unsafe {
                 std::slice::from_raw_parts_mut(
-                    temp.as_mut_ptr().cast::<PointPosition>(),
+                    mapped.as_mut_ptr().cast::<PointPosition>(),
                     (frame_data.points_position_buffer.size()
                         / std::mem::size_of::<PointPosition>() as u64) as usize,
                 )
             };
 
             for (i, pos) in STARTING_POSITION.iter().enumerate() {
-                temp_slice[i].0 = [
+                mapped_slice[i].0 = [
                     (pos.0[0] * cos_r - pos.0[1] * sin_r),
                     (pos.0[0] * sin_r + pos.0[1] * cos_r),
                 ];
