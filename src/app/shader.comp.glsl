@@ -41,11 +41,12 @@ void main() {
 
     int min_width = min(texture_size.x, texture_size.y);
 
-    vec2 position = vec2(ivec2(pixel_coords * 2) - (texture_size - min_width)) / min_width - 1;
+    vec2 ndc_coords = vec2(ivec2(pixel_coords) - min_width / 2) / float(min_width) * 2;
+    ndc_coords.y = -ndc_coords.y;
 
     vec3 sum_color = vec3(0.0, 0.0, 0.0);
     for (int i = 0; i < 4; i++) {
-        vec2 delta = position - points_position[i];
+        vec2 delta = ndc_coords - points_position[i];
         float dist_sqrd = dot(delta, delta);
         sum_color += points_color[i] / (dist_sqrd * 300.0 + 1.0);
     }
