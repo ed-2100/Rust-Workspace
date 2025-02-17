@@ -55,6 +55,7 @@ pub struct Context {
 
 // Public methods
 impl Context {
+    /// Creates a new `Context`.
     pub fn new(event_loop: &ActiveEventLoop) -> Self {
         let window = Self::create_window(event_loop);
         let size = Self::get_window_size(&window);
@@ -93,6 +94,7 @@ impl Context {
         }
     }
 
+    /// Queues drawing of another frame.
     pub fn redraw(&mut self) {
         let frame = self.surface.get_current_texture().unwrap();
         let frame_data = &self.frame_data[self.frame_data_index];
@@ -125,6 +127,7 @@ impl Context {
         self.window.request_redraw();
     }
 
+    /// Resizes the window.
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.config.width = new_size.width.max(1);
         self.config.height = new_size.height.max(1);
@@ -169,6 +172,7 @@ impl Context {
         self.window.request_redraw();
     }
 
+    /// Toggles fullscreen mode.
     pub fn toggle_fullscreen(&self) {
         if self.window.fullscreen().is_some() {
             self.window.set_fullscreen(None);
@@ -181,6 +185,7 @@ impl Context {
 
 // Private methods
 impl Context {
+    /// Creates a new window.
     fn create_window(event_loop: &ActiveEventLoop) -> Arc<Window> {
         Arc::new(
             event_loop
@@ -197,6 +202,7 @@ impl Context {
         )
     }
 
+    /// Gets the size of the window, ensuring that it is at least 1x1.
     fn get_window_size(window: &Window) -> PhysicalSize<u32> {
         let mut size = window.inner_size();
         size.width = size.width.max(1);
@@ -204,6 +210,7 @@ impl Context {
         size
     }
 
+    /// Requests an adapter for the specified instance and surface.
     fn request_adapter(instance: &Instance, surface: &Surface) -> Adapter {
         block_on(instance.request_adapter(&RequestAdapterOptions {
             power_preference: PowerPreference::default(),
@@ -213,6 +220,7 @@ impl Context {
         .unwrap()
     }
 
+    /// Requests a device and queue from the specified adapter.
     fn request_device(adapter: &Adapter) -> (Device, Queue) {
         block_on(adapter.request_device(
             &DeviceDescriptor {
@@ -226,6 +234,7 @@ impl Context {
         .unwrap()
     }
 
+    /// Configures the surface with the specified adapter, device, and size.
     fn configure_surface(
         surface: &Surface,
         adapter: &Adapter,
@@ -246,6 +255,7 @@ impl Context {
         config
     }
 
+    /// Creates a bind group layout for the device.
     fn create_bind_group_layout(device: &Device) -> BindGroupLayout {
         device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: None,
@@ -274,6 +284,7 @@ impl Context {
         })
     }
 
+    /// Creates the frame data buffers for the specified device, configuration, and bind group layout.
     fn create_frame_data(
         device: &Device,
         config: &SurfaceConfiguration,
@@ -326,6 +337,7 @@ impl Context {
         })
     }
 
+    /// Creates a compute pipeline for the specified device and bind group layout.
     fn create_compute_pipeline(
         device: &Device,
         bind_group_layout: &BindGroupLayout,
@@ -355,6 +367,7 @@ impl Context {
         })
     }
 
+    /// Updates the points position buffer with newly calculated positions.
     fn update_points_position_buffer(&self, frame_data: &FrameData) {
         let r = -SystemTime::now()
             .duration_since(self.time_start)
@@ -393,6 +406,7 @@ impl Context {
         }
     }
 
+    /// Dispatches the compute pass for the specified encoder and frame data.
     fn dispatch_compute_pass(&self, encoder: &mut CommandEncoder, frame_data: &FrameData) {
         let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
             label: None,
@@ -411,6 +425,7 @@ impl Context {
         compute_pass.dispatch_workgroups(dispatch_x, dispatch_y, 1);
     }
 
+    /// Updates the timing information for the context.
     fn update_timing(&mut self) {
         let time_current = SystemTime::now();
         if time_current.duration_since(self.time_last_print).unwrap()
