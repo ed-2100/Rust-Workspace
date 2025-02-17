@@ -41,7 +41,7 @@ void main() {
 
     int min_width = min(texture_size.x, texture_size.y);
 
-    vec2 ndc_coords = vec2(ivec2(pixel_coords) - min_width / 2) / float(min_width) * 2;
+    vec2 ndc_coords = vec2(ivec2(pixel_coords) - texture_size / 2) / float(min_width) * 2;
     ndc_coords.y = -ndc_coords.y;
 
     vec3 sum_color = vec3(0.0, 0.0, 0.0);
