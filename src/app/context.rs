@@ -9,8 +9,11 @@ use winit::{
     window::{Fullscreen, Window, WindowAttributes},
 };
 
+/// Amount of frames to keep in memory.
+/// This is used to prevent the GPU from blocking the CPU.
 const NUM_FRAMES: usize = 2;
 
+/// The size of the workgroup in the compute shader.
 const WORKGROUP_SIZE_X: u32 = 8;
 const WORKGROUP_SIZE_Y: u32 = 8;
 
