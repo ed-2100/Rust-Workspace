@@ -9,6 +9,8 @@ use winit::{
     window::{Fullscreen, Window, WindowAttributes},
 };
 
+const NUM_FRAMES: usize = 2;
+
 #[repr(C, align(16))] // The internet says 8, but the compiler says 16.
 #[derive(Clone, Copy)]
 struct PointPosition([f32; 2]);
@@ -33,7 +35,7 @@ pub struct Context {
     time_start: SystemTime,
 
     bind_group_layout: BindGroupLayout,
-    frame_data: [FrameData; 3],
+    frame_data: [FrameData; NUM_FRAMES],
     frame_data_index: usize,
 
     queue: Queue,
@@ -343,7 +345,7 @@ impl Context {
         device: &Device,
         config: &SurfaceConfiguration,
         bind_group_layout: &BindGroupLayout,
-    ) -> [FrameData; 3] {
+    ) -> [FrameData; NUM_FRAMES] {
         std::array::from_fn(|_| {
             let points_position_buffer = device.create_buffer(&BufferDescriptor {
                 label: None,
