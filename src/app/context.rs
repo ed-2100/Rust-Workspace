@@ -156,20 +156,12 @@ impl Context {
                 .texture
                 .create_view(&TextureViewDescriptor::default());
 
-            frame_data.bind_group = self.device.create_bind_group(&BindGroupDescriptor {
-                label: None,
-                layout: &self.bind_group_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: frame_data.points_position_buffer.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(&texture_view),
-                    },
-                ],
-            });
+            frame_data.bind_group = Self::create_bind_group(
+                &self.device,
+                &self.bind_group_layout,
+                &frame_data.points_position_buffer,
+                &texture_view,
+            )
         }
 
         self.window.request_redraw();
@@ -287,6 +279,29 @@ impl Context {
         })
     }
 
+    /// Creates a bind group for the specified device, bind group layout, points position buffer, and texture view.
+    fn create_bind_group(
+        device: &Device,
+        bind_group_layout: &BindGroupLayout,
+        points_position_buffer: &Buffer,
+        texture_view: &TextureView,
+    ) -> BindGroup {
+        device.create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: bind_group_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: points_position_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(texture_view),
+                },
+            ],
+        })
+    }
+
     /// Creates the frame data buffers for the specified device, configuration, and bind group layout.
     fn create_frame_data(
         device: &Device,
@@ -317,20 +332,12 @@ impl Context {
             });
             let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
-            let bind_group = device.create_bind_group(&BindGroupDescriptor {
-                label: None,
-                layout: bind_group_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: points_position_buffer.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(&texture_view),
-                    },
-                ],
-            });
+            let bind_group = Self::create_bind_group(
+                device,
+                bind_group_layout,
+                &points_position_buffer,
+                &texture_view,
+            );
 
             FrameData {
                 points_position_buffer,
