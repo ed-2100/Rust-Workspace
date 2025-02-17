@@ -97,66 +97,13 @@ impl Context {
         let frame = self.surface.get_current_texture().unwrap();
         let frame_data = &self.frame_data[self.frame_data_index];
 
-        let r = -SystemTime::now()
-            .duration_since(self.time_start)
-            .unwrap()
-            .as_secs_f32()
-            * std::f32::consts::TAU
-            / 4.0;
-        let mut sin_r = r.sin();
-        let mut cos_r = r.cos();
-        let scale_factor = (sin_r + 1.0) / 2.0;
-        sin_r *= scale_factor;
-        cos_r *= scale_factor;
-
-        // Write the points' positions to the buffer.
-        {
-            let mut mapped = self
-                .queue
-                .write_buffer_with(
-                    &frame_data.points_position_buffer,
-                    0,
-                    NonZero::new(frame_data.points_position_buffer.size()).unwrap(),
-                )
-                .unwrap();
-
-            let mapped_slice = unsafe {
-                std::slice::from_raw_parts_mut(
-                    mapped.as_mut_ptr().cast::<PointPosition>(),
-                    (frame_data.points_position_buffer.size()
-                        / std::mem::size_of::<PointPosition>() as u64) as usize,
-                )
-            };
-
-            for (i, pos) in STARTING_POSITION.iter().enumerate() {
-                mapped_slice[i].0 = [
-                    (pos.0[0] * cos_r - pos.0[1] * sin_r),
-                    (pos.0[0] * sin_r + pos.0[1] * cos_r),
-                ];
-            }
-        }
+        self.update_points_position_buffer(frame_data);
 
         let mut encoder = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
 
-        {
-            let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: None,
-                timestamp_writes: None,
-            });
-
-            compute_pass.set_pipeline(&self.compute_pipeline);
-            compute_pass.set_bind_group(0, &frame_data.bind_group, &[]);
-
-            let workgroup_size_x = 8;
-            let workgroup_size_y = 8;
-
-            let dispatch_x = self.config.width.div_ceil(workgroup_size_x);
-            let dispatch_y = self.config.height.div_ceil(workgroup_size_y);
-
-            compute_pass.dispatch_workgroups(dispatch_x, dispatch_y, 1);
-        }
+        self.dispatch_compute_pass(&mut encoder, frame_data);
 
         encoder.copy_texture_to_texture(
             frame_data.texture.as_image_copy(),
@@ -171,21 +118,7 @@ impl Context {
         self.queue.submit(Some(encoder.finish()));
         frame.present();
 
-        let time_current = SystemTime::now();
-        if time_current.duration_since(self.time_last_print).unwrap()
-            > std::time::Duration::from_millis(50)
-        {
-            print!(
-                "\x1b[s{:7.1}\x1b[u",
-                1.0 / time_current
-                    .duration_since(self.time_last_draw)
-                    .unwrap()
-                    .as_secs_f32()
-            );
-            std::io::stdout().flush().unwrap();
-            self.time_last_print = time_current;
-        }
-        self.time_last_draw = time_current;
+        self.update_timing();
 
         self.frame_data_index = (self.frame_data_index + 1) % self.frame_data.len();
 
@@ -420,5 +353,79 @@ impl Context {
             compilation_options: PipelineCompilationOptions::default(),
             cache: None,
         })
+    }
+
+    fn update_points_position_buffer(&self, frame_data: &FrameData) {
+        let r = -SystemTime::now()
+            .duration_since(self.time_start)
+            .unwrap()
+            .as_secs_f32()
+            * std::f32::consts::TAU
+            / 4.0;
+        let mut sin_r = r.sin();
+        let mut cos_r = r.cos();
+        let scale_factor = (sin_r + 1.0) / 2.0;
+        sin_r *= scale_factor;
+        cos_r *= scale_factor;
+
+        let mut mapped = self
+            .queue
+            .write_buffer_with(
+                &frame_data.points_position_buffer,
+                0,
+                NonZero::new(frame_data.points_position_buffer.size()).unwrap(),
+            )
+            .unwrap();
+
+        let mapped_slice = unsafe {
+            std::slice::from_raw_parts_mut(
+                mapped.as_mut_ptr().cast::<PointPosition>(),
+                (frame_data.points_position_buffer.size()
+                    / std::mem::size_of::<PointPosition>() as u64) as usize,
+            )
+        };
+
+        for (i, pos) in STARTING_POSITION.iter().enumerate() {
+            mapped_slice[i].0 = [
+                (pos.0[0] * cos_r - pos.0[1] * sin_r),
+                (pos.0[0] * sin_r + pos.0[1] * cos_r),
+            ];
+        }
+    }
+
+    fn dispatch_compute_pass(&self, encoder: &mut CommandEncoder, frame_data: &FrameData) {
+        let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+            label: None,
+            timestamp_writes: None,
+        });
+
+        compute_pass.set_pipeline(&self.compute_pipeline);
+        compute_pass.set_bind_group(0, &frame_data.bind_group, &[]);
+
+        let workgroup_size_x = 8;
+        let workgroup_size_y = 8;
+
+        let dispatch_x = self.config.width.div_ceil(workgroup_size_x);
+        let dispatch_y = self.config.height.div_ceil(workgroup_size_y);
+
+        compute_pass.dispatch_workgroups(dispatch_x, dispatch_y, 1);
+    }
+
+    fn update_timing(&mut self) {
+        let time_current = SystemTime::now();
+        if time_current.duration_since(self.time_last_print).unwrap()
+            > std::time::Duration::from_millis(50)
+        {
+            print!(
+                "\x1b[s{:7.1}\x1b[u",
+                1.0 / time_current
+                    .duration_since(self.time_last_draw)
+                    .unwrap()
+                    .as_secs_f32()
+            );
+            std::io::stdout().flush().unwrap();
+            self.time_last_print = time_current;
+        }
+        self.time_last_draw = time_current;
     }
 }
