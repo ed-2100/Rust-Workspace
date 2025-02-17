@@ -152,15 +152,11 @@ impl Context {
                 view_formats: &[],
             });
 
-            let texture_view = frame_data
-                .texture
-                .create_view(&TextureViewDescriptor::default());
-
             frame_data.bind_group = Self::create_bind_group(
                 &self.device,
                 &self.bind_group_layout,
                 &frame_data.points_position_buffer,
-                &texture_view,
+                &frame_data.texture,
             )
         }
 
@@ -284,8 +280,10 @@ impl Context {
         device: &Device,
         bind_group_layout: &BindGroupLayout,
         points_position_buffer: &Buffer,
-        texture_view: &TextureView,
+        texture: &Texture,
     ) -> BindGroup {
+        let texture_view = texture.create_view(&TextureViewDescriptor::default());
+
         device.create_bind_group(&BindGroupDescriptor {
             label: None,
             layout: bind_group_layout,
@@ -296,7 +294,7 @@ impl Context {
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: BindingResource::TextureView(texture_view),
+                    resource: BindingResource::TextureView(&texture_view),
                 },
             ],
         })
@@ -330,13 +328,12 @@ impl Context {
                 usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
                 view_formats: &[],
             });
-            let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
             let bind_group = Self::create_bind_group(
                 device,
                 bind_group_layout,
                 &points_position_buffer,
-                &texture_view,
+                &texture,
             );
 
             FrameData {
