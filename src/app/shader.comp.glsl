@@ -33,15 +33,17 @@ float getBayerValue(uvec2 coord) {
 
 void main() {
     uvec2 pixel_coords = gl_GlobalInvocationID.xy;
-    ivec2 texture_size = imageSize(output_texture);
+    uvec2 texture_size = imageSize(output_texture);
 
     if (pixel_coords.x >= texture_size.x || pixel_coords.y >= texture_size.y) {
         return;
     }
 
-    int min_width = min(texture_size.x, texture_size.y);
+    uint min_width = min(texture_size.x, texture_size.y);
 
-    vec2 ndc_coords = vec2(ivec2(pixel_coords) - texture_size / 2) / float(min_width) * 2;
+    ivec2 centered_coords = ivec2(pixel_coords) - ivec2(texture_size / 2);
+
+    vec2 ndc_coords = vec2(centered_coords) / float(min_width) * 2;
     ndc_coords.y = -ndc_coords.y;
 
     vec3 sum_color = vec3(0.0, 0.0, 0.0);
