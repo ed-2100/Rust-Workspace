@@ -1,5 +1,7 @@
 use pollster::block_on;
-use std::{borrow::Cow, collections::HashMap, io::Write as _, sync::Arc, time::SystemTime};
+use std::{
+    borrow::Cow, collections::HashMap, io::Write as _, num::NonZero, sync::Arc, time::SystemTime,
+};
 use wgpu::*;
 use winit::{
     dpi::{LogicalSize, PhysicalSize},
@@ -18,16 +20,22 @@ const STARTING_POSITION: &[PointPosition; 4] = &[
     PointPosition([-0.5, 0.5]),  // Blue
 ];
 
+struct FrameData {
+    points_position_buffer: Buffer,
+    texture: Texture,
+    bind_group: BindGroup,
+}
+
 // The ordering of this struct is important to the program's shutdown process.
 pub struct Context {
     time_last_print: SystemTime,
     time_last_draw: SystemTime,
     time_start: SystemTime,
-    points_position: [PointPosition; 4],
-    points_position_buffer: Buffer,
-    texture: Texture,
+
     bind_group_layout: BindGroupLayout,
-    bind_group: BindGroup,
+    frame_data: [FrameData; 3],
+    frame_data_index: usize,
+
     queue: Queue,
     device: Device,
     compute_pipeline: ComputePipeline,
@@ -110,29 +118,6 @@ impl Context {
             },
         });
 
-        let points_position_buffer = device.create_buffer(&BufferDescriptor {
-            label: None,
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            size: std::mem::size_of_val(STARTING_POSITION) as u64,
-            mapped_at_creation: false,
-        });
-
-        let texture = device.create_texture(&TextureDescriptor {
-            label: None,
-            size: Extent3d {
-                width: config.width,
-                height: config.height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Unorm,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        let texture_view = texture.create_view(&TextureViewDescriptor::default());
-
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -159,19 +144,50 @@ impl Context {
             ],
         });
 
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: &bind_group_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: points_position_buffer.as_entire_binding(),
+        let frame_data = std::array::from_fn(|_| {
+            let points_position_buffer = device.create_buffer(&BufferDescriptor {
+                label: None,
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+                size: std::mem::size_of_val(STARTING_POSITION) as u64,
+                mapped_at_creation: false,
+            });
+
+            let texture = device.create_texture(&TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: config.width,
+                    height: config.height,
+                    depth_or_array_layers: 1,
                 },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&texture_view),
-                },
-            ],
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+                view_formats: &[],
+            });
+            let texture_view = texture.create_view(&TextureViewDescriptor::default());
+
+            let bind_group = device.create_bind_group(&BindGroupDescriptor {
+                label: None,
+                layout: &bind_group_layout,
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: points_position_buffer.as_entire_binding(),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: BindingResource::TextureView(&texture_view),
+                    },
+                ],
+            });
+
+            FrameData {
+                points_position_buffer,
+                texture,
+                bind_group,
+            }
         });
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -189,8 +205,6 @@ impl Context {
             cache: None,
         });
 
-        let points_position = *STARTING_POSITION;
-
         let time_initial = SystemTime::now();
 
         Self {
@@ -199,19 +213,20 @@ impl Context {
             config,
             device,
             queue,
-            points_position,
-            points_position_buffer,
             time_start: time_initial,
             time_last_draw: time_initial,
             time_last_print: time_initial,
-            texture,
             compute_pipeline,
-            bind_group,
+            frame_data,
+            frame_data_index: 0,
             bind_group_layout,
         }
     }
 
     pub fn redraw(&mut self) {
+        let frame = self.surface.get_current_texture().unwrap();
+        let frame_data = &self.frame_data[self.frame_data_index];
+
         let r = -SystemTime::now()
             .duration_since(self.time_start)
             .unwrap()
@@ -223,21 +238,34 @@ impl Context {
         let scale_factor = (sin_r + 1.0) / 2.0;
         sin_r *= scale_factor;
         cos_r *= scale_factor;
-        for (i, pos) in STARTING_POSITION.iter().enumerate() {
-            self.points_position[i].0 = [
-                (pos.0[0] * cos_r - pos.0[1] * sin_r),
-                (pos.0[0] * sin_r + pos.0[1] * cos_r),
-            ];
-        }
-        self.queue
-            .write_buffer(&self.points_position_buffer, 0, unsafe {
-                std::slice::from_raw_parts(
-                    self.points_position.as_ptr().cast::<u8>(),
-                    std::mem::size_of_val(&self.points_position),
-                )
-            });
 
-        let frame = self.surface.get_current_texture().unwrap();
+        // Write the points' positions to the buffer.
+        {
+            let mut temp = self
+                .queue
+                .write_buffer_with(
+                    &frame_data.points_position_buffer,
+                    0,
+                    NonZero::new(frame_data.points_position_buffer.size()).unwrap(),
+                )
+                .unwrap();
+
+            let temp_slice = unsafe {
+                std::slice::from_raw_parts_mut(
+                    temp.as_mut_ptr().cast::<PointPosition>(),
+                    (frame_data.points_position_buffer.size()
+                        / std::mem::size_of::<PointPosition>() as u64) as usize,
+                )
+            };
+
+            for (i, pos) in STARTING_POSITION.iter().enumerate() {
+                temp_slice[i].0 = [
+                    (pos.0[0] * cos_r - pos.0[1] * sin_r),
+                    (pos.0[0] * sin_r + pos.0[1] * cos_r),
+                ];
+            }
+        }
+
         let mut encoder = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
@@ -249,7 +277,7 @@ impl Context {
             });
 
             compute_pass.set_pipeline(&self.compute_pipeline);
-            compute_pass.set_bind_group(0, &self.bind_group, &[]);
+            compute_pass.set_bind_group(0, &frame_data.bind_group, &[]);
 
             let workgroup_size_x = 8;
             let workgroup_size_y = 8;
@@ -261,7 +289,7 @@ impl Context {
         }
 
         encoder.copy_texture_to_texture(
-            self.texture.as_image_copy(),
+            frame_data.texture.as_image_copy(),
             frame.texture.as_image_copy(),
             Extent3d {
                 width: self.config.width,
@@ -289,6 +317,8 @@ impl Context {
         }
         self.time_last_draw = time_current;
 
+        self.frame_data_index = (self.frame_data_index + 1) % self.frame_data.len();
+
         self.window.request_redraw();
     }
 
@@ -296,39 +326,44 @@ impl Context {
         self.config.width = new_size.width.max(1);
         self.config.height = new_size.height.max(1);
         self.surface.configure(&self.device, &self.config);
+
+        for frame_data in self.frame_data.iter_mut() {
+            frame_data.texture = self.device.create_texture(&TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: self.config.width,
+                    height: self.config.height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+                view_formats: &[],
+            });
+
+            let texture_view = frame_data
+                .texture
+                .create_view(&TextureViewDescriptor::default());
+
+            frame_data.bind_group = self.device.create_bind_group(&BindGroupDescriptor {
+                label: None,
+                layout: &self.bind_group_layout,
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: frame_data.points_position_buffer.as_entire_binding(),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: BindingResource::TextureView(&texture_view),
+                    },
+                ],
+            });
+        }
+
         self.window.request_redraw();
-
-        self.texture = self.device.create_texture(&TextureDescriptor {
-            label: None,
-            size: Extent3d {
-                width: self.config.width,
-                height: self.config.height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Unorm,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-
-        let texture_view = self.texture.create_view(&TextureViewDescriptor::default());
-
-        self.bind_group = self.device.create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: &self.bind_group_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: self.points_position_buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&texture_view),
-                },
-            ],
-        });
     }
 
     pub fn toggle_fullscreen(&self) {
